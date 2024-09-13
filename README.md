@@ -7,6 +7,7 @@ pytorch_interpolation runs entirely in C++/CUDA backends, thus significantly out
 
 This repository implements a C++/CUDA extensions for PyTorch (in the style of https://github.com/pytorch/extension-cpp)
 
+At present, only bilinear 2D interpolation on a regular cartesian grid is implemented. 
 
 # Installation intructions 
 
