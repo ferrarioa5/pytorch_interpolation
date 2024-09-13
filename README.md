@@ -24,14 +24,14 @@ The repository was tested with Python3.8 and PyTorch with CUDA version 12.1
 The package works similarly to Scipy's RegularGrid. In `example.py` we provided a simple example and comparison between our interpolation and Scipy's RegularGridInterpolator. 
 
 <p align="center">
-  <img src="example.png" width="70%"/>
+  <img src="example.png" width="100%"/>
 </p>
 
 In a nutshell, suppose that:
 
 - `x` and `y` are the x and y grid of data points you want to interpolate over
 - `F` is the function values at these points
-- `xpt` and `ypt` be the N dimensional tensor of x and y interpolation query points
+- `xpt` and `ypt` be the N dimensional tensor of interpolation query points
 
 -> then `G = bilinear_interp(F,x,y,xpt,ypt)` the interpolated values at the desired locations
 
