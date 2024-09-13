@@ -13,7 +13,7 @@ from torch.utils.cpp_extension import (
     CUDA_HOME,
 )
 
-library_name = "src"
+src_dir_name = "pytorch_interp"
 
 
 def get_extensions():
@@ -41,7 +41,7 @@ def get_extensions():
         extra_link_args.extend(["-O0", "-g"])
 
     this_dir = os.path.dirname(os.path.curdir)
-    extensions_dir = os.path.join(this_dir, library_name, "csrc")
+    extensions_dir = os.path.join(this_dir, src_dir_name, "csrc")
     sources = list(glob.glob(os.path.join(extensions_dir, "*.cpp")))
 
     extensions_cuda_dir = os.path.join(extensions_dir, "cuda")
@@ -52,7 +52,7 @@ def get_extensions():
 
     ext_modules = [
         extension(
-            f"{library_name}._C",
+            f"{src_dir_name}._C",
             sources,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
@@ -63,12 +63,12 @@ def get_extensions():
 
 
 setup(
-    name=library_name,
+    name="pytorch_interpolation",
     version="0.0.1",
     packages=find_packages(),
-    install_requires=["torch", "scipy", "matplotlib"],
+    install_requires=["torch"],
     ext_modules=get_extensions(),
-    description="Bilinear interpolation in PyTorch",
+    description="Bilinear interpolation on a regular grid in PyTorch",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/ferrarioa5/pytorch_interpolation",
