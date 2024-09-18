@@ -1,16 +1,17 @@
 
-from pytorch_interp import bilinear_interp
+from pytorch_interp import RegularGridInterpolator as my_rgi
+from scipy.interpolate import RegularGridInterpolator as scipy_rgi
 
 import torch
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
 import matplotlib.pyplot as plt
+torch.cuda.empty_cache()
 
-device="cpu"
+device="cuda"
 
 M1  = 1000
 M2  = 500
-N   = 400
+N   = 2**15
 x1  = -2
 x2  = 12
 y1  = -1.2
@@ -25,27 +26,32 @@ X, Y = torch.meshgrid(x, y, indexing="ij")
 
 F=torch.sin(X)*torch.sin(Y)
 
-interp_spline = RegularGridInterpolator((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(), method='linear') #, bounds_error=False, fill_value=None)
-G_rgi = interp_spline(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
+# scipy implementation
+interp_spline = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy()) 
+G1 = interp_spline(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
 
-G = bilinear_interp(F,x,y,xpt,ypt)
+torch.cuda.empty_cache()
+
+# our implementation
+interp_spline = my_rgi((x, y), F)
+G2 = interp_spline(xpt,ypt)
 
 fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
 
-vmin,vmax = (fun(np.concatenate([F.cpu().numpy().flatten(),G_rgi])) for fun in (np.min,np.max))
+vmin,vmax = (fun(np.concatenate([F.cpu().numpy().flatten(),G1])) for fun in (np.min,np.max))
 
 ax[0].contourf(X.cpu().numpy(),Y.cpu().numpy(),F.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
 ax[0].set_title("Real function")
 ax[0].set_xlabel("x")
 ax[0].set_ylabel("y")
 
-ax[1].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G_rgi,cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
+ax[1].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G1,cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
 ax[1].set_title("Scipy interpolation")
 ax[1].set_xlabel("x")
 ax[1].set_ylabel("y")
 
-ax[2].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
-ax[2].set_title("Torch interpolation")
+ax[2].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G2.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
+ax[2].set_title("pytorch_interpolation interpolation")
 ax[2].set_xlabel("x")
 ax[2].set_ylabel("y")
 
