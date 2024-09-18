@@ -50,7 +50,7 @@ G = interp(xpt,ypt)
 
 
 # Performance
-The script `performance.py` tests the performance test for pytorch_interp in cpu/cuda vs scipy and [PyTorch](https://github.com/sbarratt/torch_interpolations), another pytorch package for bilinear interpolation written entirely in Python.
+The script `performance.py` tests the performance test for pytorch_interp in cpu/cuda vs scipy and [torch_interpolations](https://github.com/sbarratt/torch_interpolations), another pytorch package for bilinear interpolation written entirely in Python.
 <p align="center">
   <img src="performance.png" width="30%"/>
 </p>
