@@ -1,42 +1,39 @@
 
 from pytorch_interp import RegularGridInterpolator as my_rgi
 from scipy.interpolate import RegularGridInterpolator as scipy_rgi
-
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-torch.cuda.empty_cache()
 
-device="cuda"
+device="cpu"
+torch.set_num_threads(8)
 
-M1  = 1000
-M2  = 500
-N   = 2**15
-x1  = -2
-x2  = 12
-y1  = -1.2
-y2  = 6
+M1  = 2**5
+M2  = 2**5
+N   = 2**10
+x1  = -4.23
+x2  = 12.6
+y1  = -2.3
+y2  = 2.2
 x   = torch.linspace(x1,x2,M1).to(device)
 y   = torch.linspace(y1,y2,M2).to(device)
 xpt = (x2-x1)*torch.rand(N)+x1
-xpt=xpt.to(device)
+xpt = xpt.to(device)
 ypt = (y2-y1)*torch.rand(N)+y1
-ypt=ypt.to(device)
+ypt = ypt.to(device)
 X, Y = torch.meshgrid(x, y, indexing="ij")
 
 F=torch.sin(X)*torch.sin(Y)
 
 # scipy implementation
-interp_spline = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy()) 
-G1 = interp_spline(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
+interp1 = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(),bounds_error=False, fill_value=0.0) 
+G1 = interp1(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
 
-torch.cuda.empty_cache()
+# implementation
+interp2 = my_rgi((x, y), F)
+G2 = interp2(xpt,ypt)
 
-# our implementation
-interp_spline = my_rgi((x, y), F)
-G2 = interp_spline(xpt,ypt)
-
-fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12,3))
+fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(18,6))
 
 vmin,vmax = (fun(np.concatenate([F.cpu().numpy().flatten(),G1])) for fun in (np.min,np.max))
 

@@ -56,4 +56,4 @@ The script `performance.py` tests the performance test for pytorch_interp in cpu
 </p>
 Our implementation outperformes all others libraries. This is because we use precompiled C++/CUDA code does not require type checking. In addition our implementation allow for larger batch sizes than torch_interpolations in CUDA (we could test up to <= 2^29 query points, whereas torch_interpolations supported <= 2^27 query points). 
 
-All tests are done on a 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz CPU and a NVIDIA GeForce RTX 3060 GPU
+All tests are done on a 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz CPU and a NVIDIA GeForce RTX 3060 GPU. For the CPU performance tests, 8 threads are run in parallel in Torch.

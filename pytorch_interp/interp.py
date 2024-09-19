@@ -1,7 +1,6 @@
 
-import torch
 from pytorch_interp import bilinear_interp
-
+import torch
 
 class RegularGridInterpolator:
 
@@ -11,21 +10,21 @@ class RegularGridInterpolator:
         (x,y) = points
         self.x = x
         self.y = y
-        
-        assert isinstance(F, torch.Tensor)
-        self.F = F
-        self.G = torch.zeros(2**10)
-
         self.dx = float(x[1]-x[0])
         self.dy = float(y[1]-y[0])
         self.M1 = len(x)
         self.M2 = len(y)
+        self.F = F
+
 
     def __call__(self, xpt, ypt):
-        return bilinear_interp(
-            self.F, 
+        G = torch.zeros_like(xpt)
+        # G = torch.empty(xpt.size(), dtype=torch.float32)
+        bilinear_interp(
+            self.F, G,
             self.x, self.y,
             xpt, ypt,
             self.M1, self.M2,
             self.dx, self.dy,
         )
+        return G
