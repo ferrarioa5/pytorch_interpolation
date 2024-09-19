@@ -89,28 +89,25 @@ def time_cuda_torch_interpolations(N):
     return 1e-3*(start.elapsed_time(end)) # conversion to sec
 
 
-Ns   = 2**torch.arange(10,26)
+Ns   = 2**torch.arange(4,26)
 time_pytorch_cpu = []
 time_pytorch_cuda = []
 time_scipy = []
 time_torch_interpolations_cpu = []
 time_torch_interpolations_gpu = []
 
-with torch.autograd.profiler.profile(use_device="cuda") as prof:
-    for N in Ns:
-        time_pytorch_cpu.append(time_cpu_pytorch_interp(N))
-        time_pytorch_cuda.append(time_cuda_pytorch_interp(N))
-        time_scipy.append(time_scipy_interp(N))
-        time_torch_interpolations_cpu.append(time_cpu_torch_interpolations(N))
-        time_torch_interpolations_gpu.append(time_cuda_torch_interpolations(N))
-print(prof)
+for N in Ns:
+    time_pytorch_cpu.append(time_cpu_pytorch_interp(N))
+    time_pytorch_cuda.append(time_cuda_pytorch_interp(N))
+    time_scipy.append(time_scipy_interp(N))
+    time_torch_interpolations_cpu.append(time_cpu_torch_interpolations(N))
+    time_torch_interpolations_gpu.append(time_cuda_torch_interpolations(N))
 
 
 
 
 # ==== plotting ====
-plt.figure(figsize=(5,10))
-plt.subplot(2,1,1)
+plt.figure(figsize=(5,5))
 plot_type = plt.loglog
 ms=20
 plot_type(Ns, time_pytorch_cpu, 'g.', label="pytorch_interpolation CPU (OUR)", ms=ms)
@@ -122,22 +119,9 @@ plt.xlabel("Number of interpolated points")
 plt.ylabel("Execution time (sec)")
 plt.legend()
 plt.title("Loglog")
-plt.xscale("log", base=2)
-plt.yscale("log", base=2)
+plt.xscale("log", base=10)
+plt.yscale("log", base=10)
 
-plt.subplot(2,1,2)
-plot_type = plt.semilogx
-ms=20
-plot_type(Ns, time_pytorch_cpu, 'g.', label="pytorch_interpolation CPU (OUR)", ms=ms)
-plot_type(Ns, time_pytorch_cuda, 'b.', label="pytorch_interpolation GPU (OUR)", ms=ms)
-plot_type(Ns, time_scipy, 'r.', label="scipy", ms=ms)
-plot_type(Ns, time_torch_interpolations_cpu, 'y.', label="torch_interpolations CPU", ms=ms)
-plot_type(Ns, time_torch_interpolations_gpu, 'k.', label="torch_interpolations GPU", ms=ms)
-plt.xlabel("Number of interpolated points")
-plt.ylabel("Execution time (sec)")
-plt.legend()
-plt.title("Semilogx")
-plt.xscale("log", base=2)
 plt.savefig("performance")
 
 plt.show()

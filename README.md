@@ -1,6 +1,6 @@
 # pytorch_interpolation
 
-PyTorch bilinear interpolation on a regular grid on a unstructured set of 2D query points,  to Scipy's 
+Fast bilinear interpolation in PyTorch on a regular grid on a unstructured set of 2D query points, analogous to Scipy's 
 [RegularGridInterpolator](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html).
 
 pytorch_interpolation runs entirely in C++/CUDA backends, thus significantly outperforming Scipy.

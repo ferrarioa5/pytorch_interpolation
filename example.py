@@ -10,7 +10,7 @@ torch.set_num_threads(8)
 
 M1  = 2**5
 M2  = 2**5
-N   = 2**10
+N   = 2**12
 x1  = -4.23
 x2  = 12.6
 y1  = -2.3
@@ -41,16 +41,23 @@ ax[0].contourf(X.cpu().numpy(),Y.cpu().numpy(),F.cpu().numpy(),cmap=plt.cm.virid
 ax[0].set_title("Real function")
 ax[0].set_xlabel("x")
 ax[0].set_ylabel("y")
+ax[0].set_xlim([x1,x2])
+ax[0].set_ylim([y1,y2])
+
 
 ax[1].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G1,cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
 ax[1].set_title("Scipy interpolation")
 ax[1].set_xlabel("x")
 ax[1].set_ylabel("y")
+ax[1].set_xlim([x1,x2])
+ax[1].set_ylim([y1,y2])
 
 ax[2].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G2.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
 ax[2].set_title("pytorch_interpolation interpolation")
 ax[2].set_xlabel("x")
 ax[2].set_ylabel("y")
+ax[2].set_xlim([x1,x2])
+ax[2].set_ylim([y1,y2])
 
 plt.savefig("example")
 
