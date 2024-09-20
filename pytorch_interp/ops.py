@@ -8,7 +8,8 @@ def bilinear_interp(
                     x: Tensor, y: Tensor,
                     xpt: Tensor, ypt: Tensor,
                     M1: int, M2: int,
-                    dx: float, dy: float
+                    dx: float, dy: float,
+                    fill_method: int, fill_value:float
                     ) -> Tensor:
     """Bilinear interpolation"""
-    return torch.ops.extension_interp.bilinear_interp.default(F,G,x,y,xpt,ypt,M1,M2,dx,dy)
+    return torch.ops.extension_interp.bilinear_interp.default(F,G,x,y,xpt,ypt,M1,M2,dx,dy,fill_method,fill_value)

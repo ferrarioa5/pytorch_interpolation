@@ -7,8 +7,8 @@ pytorch_interpolation runs entirely in C++/CUDA backends, thus significantly out
 
 This repository implements a C++/CUDA extensions for PyTorch (in the style of https://github.com/pytorch/extension-cpp)
 
-At present, only bilinear 2D interpolation is implemented and zero-padding is applied to points outside the domain of the cartesian grid.
-The method assumes that the starting grid where the function to interpolate is known is a regular grid. 
+At present, only bilinear 2D interpolation is implemented and padding/linear extrapolation is applied to points outside the domain of the cartesian grid.
+The method assumes that the function is known is a on a regular grid. 
 
 # Installation intructions 
 
@@ -46,7 +46,7 @@ from pytorch_interp import RegularGridInterpolator
 interp = RegularGridInterpolator(F,x,y,xpt,ypt)
 G = interp(xpt,ypt)
 ```
-
+Optionally, the constant fill value padding can modified as `fill_value=value`. Also, bilinear extrapolation is now possible by setting `fill_value=None` (just like in Scipy). 
 
 
 # Performance
