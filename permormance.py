@@ -89,7 +89,7 @@ def time_cuda_torch_interpolations(N):
     return 1e-3*(start.elapsed_time(end)) # conversion to sec
 
 
-Ns   = 2**torch.arange(4,26)
+Ns   = 2**torch.arange(4,27)
 time_pytorch_cpu = []
 time_pytorch_cuda = []
 time_scipy = []
