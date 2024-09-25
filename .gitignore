@@ -4,3 +4,4 @@ __pycache__
 _C.*
 build
 tests
+.vscode
