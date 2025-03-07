@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-device="cuda"
+device="cpu"
 torch.set_num_threads(8)
 
 M1  = 2**5
@@ -26,11 +26,11 @@ X, Y = torch.meshgrid(x, y, indexing="ij")
 F=torch.sin(X)*torch.sin(Y)
 
 # scipy implementation
-interp1 = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(),bounds_error=False, fill_value=0) 
+interp1 = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(),bounds_error=False, fill_value=0)
 G1 = interp1(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
 
 # implementation
-interp2 = my_rgi((x, y), F, fill_value=0)
+interp2 = my_rgi((x, y), F, fill_value=None)
 G2 = interp2(xpt,ypt)
 
 fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(18,6))

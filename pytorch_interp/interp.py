@@ -16,17 +16,20 @@ class RegularGridInterpolator:
         self.M2 = len(y)
         self.F = F
         self.fill_value = fill_value
-        if fill_value==None:
-            self.fill_method=2
-            self.fill_value=0.0 # need to be a float in the c++ call (not actually used)
-        elif type(fill_value)==float:
+        if type(fill_value)==float:
             self.fill_method=1
         elif type(fill_value)==int:
             self.fill_method=1
             self.fill_value = float(fill_value)
+        elif fill_value==None:
+            self.fill_method=2
+            self.fill_value=0.0 # need to be a float in the c++ call (not actually used)
+        elif fill_value=="nearest":
+            self.fill_method=3
+            self.fill_value=0.0 # need to be a float in the c++ call (not actually used)
         else:
-            raise("Provide a floating or None fill_value")
-            
+            raise("Provide a floating, None or nearest fill_value")
+
 
 
     def __call__(self, xpt, ypt):

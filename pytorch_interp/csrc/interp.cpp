@@ -3,29 +3,26 @@
 #include <vector>
 
 namespace extension_interp {
-void bilinear_interpolation_kernel_CPU_zero_padding(float * G, float * F, 
-                                        const float * xpts, const float * ypts, 
+void bilinear_interpolation_kernel_CPU_padding(float * G, float * F,
+                                        const float * xpts, const float * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy, 
+                                        const float dx, const float dy,
                                         const float * x, const float * y,
                                         const float fill_value)
 {
 
   for(int k=0; k<N; k++){
-    const int    ind_x  = floor((xpts[k]-x[0])/dx);
-    const int    ind_xp = ind_x+1;
-
-    const int    ind_y  = floor((ypts[k]-y[0])/dy);
-    const int    ind_yp = ind_y+1;
+    const int ind_x  = floor((xpts[k]-x[0])/dx);
+    const int ind_xp = ind_x+1;
+    const int ind_y  = floor((ypts[k]-y[0])/dy);
+    const int ind_yp = ind_y+1;
 
     if ( 0 <= ind_x && ind_xp  < M1 && 0 <= ind_y && ind_yp  < M2 ) {
       const float w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
       const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
       const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
       const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
-      const float numerator = w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_y+1] + w21*F[(ind_x+1)*M2+ind_y] + w22*F[(ind_x+1)*M2+ind_y+1];
-      const float denominator = (x[ind_xp]-x[ind_x])*(y[ind_yp]-y[ind_y]);
-      G[k] = numerator/denominator;
+      G[k] = (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
     }
     else{
       G[k] = fill_value;
@@ -33,10 +30,10 @@ void bilinear_interpolation_kernel_CPU_zero_padding(float * G, float * F,
   }
 }
 
-void bilinear_interpolation_kernel_CPU_linear_extrap(float * G, float * F, 
-                                        const float * xpts, const float * ypts, 
+void bilinear_interpolation_kernel_CPU_linear_extrap_linear(float * G, float * F,
+                                        const float * xpts, const float * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy, 
+                                        const float dx, const float dy,
                                         const float * x, const float * y)
 {
 
@@ -50,7 +47,7 @@ void bilinear_interpolation_kernel_CPU_linear_extrap(float * G, float * F,
     if (ind_x<0) {
       ind_x=0;
       ind_xp=1;
-    } 
+    }
     if (ind_xp>=M1) {
       ind_x=M1-2;
       ind_xp=M1-1;
@@ -67,24 +64,59 @@ void bilinear_interpolation_kernel_CPU_linear_extrap(float * G, float * F,
     const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
     const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
     const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
-    const float numerator = w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_y+1] + w21*F[(ind_x+1)*M2+ind_y] + w22*F[(ind_x+1)*M2+ind_y+1];
-    const float denominator = (x[ind_xp]-x[ind_x])*(y[ind_yp]-y[ind_y]);
-    G[k] = numerator/denominator;
+    G[k] = (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
   }
 }
 
 
+void bilinear_interpolation_kernel_CPU_linear_extrap_nearest(float * G, float * F,
+  const float * xpts, const float * ypts,
+  const int M1, const int M2, const int N,
+  const float dx, const float dy,
+  const float * x, const float * y) {
+
+  for(int k=0; k<N; k++){
+    int ind_x = floor((xpts[k]-x[0])/dx);
+    int ind_y = floor((ypts[k]-y[0])/dy);
+
+    if ( 0 <= ind_x && ind_x  < M1-1 && 0 <= ind_y && ind_y  < M2-1 ) {
+      int ind_xp = ind_x+1;
+      int ind_yp = ind_y+1;
+      const float w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
+      const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
+      const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
+      const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
+      G[k] = (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
+    }
+    else {
+      if (ind_x<0) {
+        ind_x=0;
+      }
+      if (ind_x>=M1) {
+        ind_x=M1-1;
+      }
+      if (ind_y<0) {
+        ind_y=0;
+      }
+      if (ind_y>=M2) {
+        ind_y=M2-1;
+      }
+      G[k]=F[ind_x*M2+ind_y];
+    }
+  }
+}
+
 
 void bilinear_interp_cpu(
-    const at::Tensor& F, 
-    at::Tensor& G, 
+    const at::Tensor& F,
+    at::Tensor& G,
     const at::Tensor& x,
     const at::Tensor& y,
     const at::Tensor& xpt,
     const at::Tensor& ypt,
-    const int64_t M1, 
+    const int64_t M1,
     const int64_t M2,
-    const double dx, 
+    const double dx,
     const double dy,
     const int64_t fill_method,
     const double fill_value
@@ -109,21 +141,28 @@ void bilinear_interp_cpu(
   const int N  = G.numel();
 
   if(fill_method==1) {
-    bilinear_interpolation_kernel_CPU_zero_padding(G_ptr, F_ptr, 
-                                      xpt_ptr, ypt_ptr, 
+    bilinear_interpolation_kernel_CPU_padding(G_ptr, F_ptr,
+                                      xpt_ptr, ypt_ptr,
                                       M1, M2, N,
                                       dx, dy,
                                       x_ptr, y_ptr,
                                       fill_value);
   }
   else if(fill_method==2) {
-   bilinear_interpolation_kernel_CPU_linear_extrap(G_ptr, F_ptr, 
-                                      xpt_ptr, ypt_ptr, 
+   bilinear_interpolation_kernel_CPU_linear_extrap_linear(G_ptr, F_ptr,
+                                      xpt_ptr, ypt_ptr,
                                       M1, M2, N,
                                       dx, dy,
                                       x_ptr, y_ptr);
   }
-}
+  else if(fill_method==3) {
+    bilinear_interpolation_kernel_CPU_linear_extrap_nearest(G_ptr, F_ptr,
+                                       xpt_ptr, ypt_ptr,
+                                       M1, M2, N,
+                                       dx, dy,
+                                       x_ptr, y_ptr);
+   }
+  }
 
 // Registers _C as a Python extension module.
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {}

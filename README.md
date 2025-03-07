@@ -1,29 +1,29 @@
 # pytorch_interpolation
 
-Fast bilinear interpolation in PyTorch on a regular grid on a unstructured set of 2D query points, analogous to Scipy's 
+Fast bilinear interpolation in PyTorch on a regular grid on a unstructured set of 2D query points, analogous to Scipy's
 [RegularGridInterpolator](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html).
 
 pytorch_interpolation runs entirely in C++/CUDA backends, thus significantly outperforming Scipy.
 
 This repository implements a C++/CUDA extensions for PyTorch (in the style of https://github.com/pytorch/extension-cpp)
 
-At present, only bilinear 2D interpolation is implemented and padding/linear extrapolation is applied to points outside the domain of the cartesian grid.
-The method assumes that the function is known is a on a regular grid. 
+At present, only bilinear 2D interpolation is implemented and padding/linear/nearest extrapolation is applied to points outside the domain of the cartesian grid.
+The method assumes that the function is known is a on a regular grid.
 
-# Installation intructions 
+# Installation intructions
 
-First, you need to have [PyTorch](https://pytorch.org/get-started) installed. 
+First, you need to have [PyTorch](https://pytorch.org/get-started) installed.
 Now you are set up and ready to install the repository
 > `pip install .`
 
 To run the examples provided, install numpy, scipy and matplotlib:
 > `pip install numpy scipy matplotlib`
 
-The repository was tested with Python3.8 and PyTorch with CUDA version 12.1
+The repository was tested with Python3.10 and PyTorch with CUDA version 12.4
 
 
 # Usage example
-The package works similarly to Scipy's RegularGrid. In `example.py` we provided a simple example and comparison between our interpolation and Scipy's RegularGridInterpolator. 
+The package works similarly to Scipy's RegularGrid. In `example.py` we provided a simple example and comparison between our interpolation and Scipy's RegularGridInterpolator.
 
 <p align="center">
   <img src="example.png" width="100%"/>
@@ -46,7 +46,11 @@ from pytorch_interp import RegularGridInterpolator
 interp = RegularGridInterpolator(F,x,y,xpt,ypt)
 G = interp(xpt,ypt)
 ```
-Optionally, the constant fill value padding can modified as `fill_value=value`. Also, bilinear extrapolation is now possible by setting `fill_value=None` (just like in Scipy). 
+Optionally, the constant fill value padding can modified as `fill_value=value`. Also, bilinear extrapolation is now possible by setting `fill_value=None` (just like in Scipy).
+The default value is a constant zero-padding fill_value=0.0. If `fill_value=nearest`, nearest-extrapolation is applied. An example of the latter is in the script `example_nearest_extrapolation.py`.
+<p align="center">
+  <img src="nearest_extrapolation.png" width="100%"/>
+</p>
 
 
 # Performance
@@ -54,6 +58,6 @@ The script `performance.py` tests the performance test for pytorch_interp in cpu
 <p align="center">
   <img src="performance.png" width="30%"/>
 </p>
-Our implementation outperformes all others libraries. This is because we use precompiled C++/CUDA code does not require type checking. In addition our implementation allow for larger batch sizes than torch_interpolations in CUDA (we could test up to <= 2^29 query points, whereas torch_interpolations supported <= 2^27 query points). 
+Our implementation outperformes all others libraries. This is because we use precompiled C++/CUDA code does not require type checking. In addition our implementation allow for larger batch sizes than torch_interpolations in CUDA (we could test up to <= 2^29 query points, whereas torch_interpolations supported <= 2^27 query points).
 
-All tests are done on a 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz CPU and a NVIDIA GeForce RTX 3060 GPU. For the CPU performance tests, 8 threads are run in parallel in Torch.
+All tests are done on an Intel(R) Core(TM) i9-14900 CPU and a NVIDIA GeForce RTX 4080 SUPER GPU. For the CPU performance tests, 8 threads are run in parallel in Torch.
