@@ -1,6 +1,5 @@
 
 from pytorch_interp import RegularGridInterpolator as my_rgi
-from scipy.interpolate import RegularGridInterpolator as scipy_rgi
 import torch
 import numpy as np
 import matplotlib.pyplot as plt

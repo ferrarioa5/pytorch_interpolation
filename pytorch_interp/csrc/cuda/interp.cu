@@ -71,43 +71,43 @@ __global__ void bilinear_interpolation_kernel_CUDA_linear_extrap_linear(
     }
   }
 
-  __global__ void bilinear_interpolation_kernel_CUDA_linear_extrap_nearest(
-    float * G, float * F,
-    float * xpts, float * ypts,
-    const int M1, const int M2, const int N,
-    const float dx, const float dy,
-    const float * x, const float * y) {
+__global__ void bilinear_interpolation_kernel_CUDA_linear_extrap_nearest(
+  float * G, float * F,
+  float * xpts, float * ypts,
+  const int M1, const int M2, const int N,
+  const float dx, const float dy,
+  const float * x, const float * y) {
 
-    int k = blockIdx.x * blockDim.x + threadIdx.x;
-    if (k < N) {
-      int ind_x  = floor((xpts[k]-x[0])/dx);
-      int ind_y  = floor((ypts[k]-y[0])/dy);
-      if ( 0 <= ind_x && ind_x  < M1-1 && 0 <= ind_y && ind_y  < M2-1 ) {
-        int ind_xp = ind_x+1;
-        int ind_yp = ind_y+1;
-        const float w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
-        const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
-        const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
-        const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
-        G[k] = (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if (k < N) {
+    int ind_x  = floor((xpts[k]-x[0])/dx);
+    int ind_y  = floor((ypts[k]-y[0])/dy);
+    if ( 0 <= ind_x && ind_x  < M1-1 && 0 <= ind_y && ind_y  < M2-1 ) {
+      int ind_xp = ind_x+1;
+      int ind_yp = ind_y+1;
+      const float w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
+      const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
+      const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
+      const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
+      G[k] = (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
+    }
+    else {
+      if (ind_x<0) {
+        ind_x=0;
       }
-      else {
-        if (ind_x<0) {
-          ind_x=0;
-        }
-        if (ind_x>=M1) {
-          ind_x=M1-1;
-        }
-        if (ind_y<0) {
-          ind_y=0;
-        }
-        if (ind_y>=M2) {
-          ind_y=M2-1;
-        }
-        G[k]=F[ind_x*M2+ind_y];
+      if (ind_x>=M1) {
+        ind_x=M1-1;
       }
+      if (ind_y<0) {
+        ind_y=0;
+      }
+      if (ind_y>=M2) {
+        ind_y=M2-1;
+      }
+      G[k]=F[ind_x*M2+ind_y];
     }
   }
+}
 
 
 

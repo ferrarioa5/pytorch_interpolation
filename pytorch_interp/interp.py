@@ -28,7 +28,7 @@ class RegularGridInterpolator:
             self.fill_method=3
             self.fill_value=0.0 # need to be a float in the c++ call (not actually used)
         else:
-            raise("Provide a floating, None or nearest fill_value")
+            raise Exception("Provide a floating, None or nearest fill_value")
 
 
 

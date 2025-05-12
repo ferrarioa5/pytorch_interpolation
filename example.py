@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 device="cpu"
+dtype=torch.float32
 torch.set_num_threads(8)
 
 M1  = 2**5
@@ -15,11 +16,11 @@ x1  = -4.23
 x2  = 12.6
 y1  = -2.3
 y2  = 2.2
-x   = torch.linspace(x1,x2,M1).to(device)
-y   = torch.linspace(y1,y2,M2).to(device)
-xpt = (x2-x1)*torch.rand(N)+x1
+x   = torch.linspace(x1,x2,M1,dtype=dtype).to(device)
+y   = torch.linspace(y1,y2,M2,dtype=dtype).to(device)
+xpt = (x2-x1)*torch.rand(N,dtype=dtype)+x1
 xpt = xpt.to(device)
-ypt = (y2-y1)*torch.rand(N)+y1
+ypt = (y2-y1)*torch.rand(N,dtype=dtype)+y1
 ypt = ypt.to(device)
 X, Y = torch.meshgrid(x, y, indexing="ij")
 
