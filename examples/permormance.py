@@ -1,7 +1,8 @@
 
 
 
-from pytorch_interp import RegularGridInterpolator
+import os
+from pytorch_interpolation import RegularGridInterpolator as RegularGridInterpolator
 import torch
 import numpy as np
 import scipy.interpolate as scipy_interpolate
@@ -121,8 +122,15 @@ plt.legend()
 plt.title("Loglog")
 plt.xscale("log", base=10)
 plt.yscale("log", base=10)
+plt.ylim([0,1])
 
-plt.savefig("performance")
 
-plt.show()
+
+
+
+figures_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../figures/")
+plt.savefig(os.path.join(figures_dir, "performance"))
+
+
+
 

@@ -4,12 +4,13 @@ from torch import Tensor
 __all__ = ["bilinear_interp"]
 
 def bilinear_interp(
-                    F: Tensor, G: Tensor, 
+                    F: Tensor, G: Tensor,
                     x: Tensor, y: Tensor,
                     xpt: Tensor, ypt: Tensor,
                     M1: int, M2: int,
                     dx: float, dy: float,
-                    fill_method: int, fill_value:float
+                    fill_method: int, fill_value:float,
+                    method: int
                     ) -> Tensor:
     """Bilinear interpolation"""
-    return torch.ops.extension_interp.bilinear_interp.default(F,G,x,y,xpt,ypt,M1,M2,dx,dy,fill_method,fill_value)
+    return torch.ops.extension_interp.bilinear_interp.default(F,G,x,y,xpt,ypt,M1,M2,dx,dy,fill_method,fill_value, method)

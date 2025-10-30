@@ -1,5 +1,6 @@
 
-from pytorch_interp import RegularGridInterpolator as my_rgi
+import os
+from pytorch_interpolation import RegularGridInterpolator as my_rgi
 from scipy.interpolate import RegularGridInterpolator as scipy_rgi
 import torch
 import numpy as np
@@ -9,9 +10,9 @@ device="cpu"
 dtype=torch.float32
 torch.set_num_threads(8)
 
-M1  = 2**5
-M2  = 2**5
-N   = 2**12
+M1  = 2**8
+M2  = 2**8
+N   = 2**13
 x1  = -4.23
 x2  = 12.6
 y1  = -2.3
@@ -24,15 +25,17 @@ ypt = (y2-y1)*torch.rand(N,dtype=dtype)+y1
 ypt = ypt.to(device)
 X, Y = torch.meshgrid(x, y, indexing="ij")
 
-F=torch.sin(X)*torch.sin(Y)
+function = lambda x,y: torch.sin(x)*torch.sin(y)
+F=function(X,Y)
 
 # scipy implementation
 interp1 = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(),bounds_error=False, fill_value=0)
 G1 = interp1(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
 
 # implementation
-interp2 = my_rgi((x, y), F, fill_value=None)
+interp2 = my_rgi((x, y), F, fill_value=0, method=1)
 G2 = interp2(xpt,ypt)
+
 
 fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(18,6))
 
@@ -60,9 +63,13 @@ ax[2].set_ylabel("y")
 ax[2].set_xlim([xpt.cpu().numpy().min(),xpt.cpu().numpy().max()])
 ax[2].set_ylim([ypt.cpu().numpy().min(),ypt.cpu().numpy().max()])
 
-plt.savefig("example")
 
 
-plt.show()
+figures_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../figures/")
+plt.savefig(os.path.join(figures_dir, "example"))
+
+
+
+
 
 
