@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-device="cpu"
+device="cuda"
 dtype=torch.float32
 torch.set_num_threads(8)
 

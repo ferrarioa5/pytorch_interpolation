@@ -25,32 +25,36 @@ extern "C" {
   }
 }
 
-float compute_G_k_Bilinear( const int k,
-        const float * xpts, const float * ypts,
-        const float * x, const float * y,
+namespace extension_interp {
+
+template <typename scalar_t>
+scalar_t compute_G_k_Bilinear( const int k,
+        const scalar_t * xpts, const scalar_t * ypts,
+        const scalar_t * x, const scalar_t * y,
         const int ind_x, const int ind_xp,
         const int ind_y, const int ind_yp,
-        const float * F, const int M2,
-        const float dx, const float dy
+        const scalar_t * F, const int M2,
+        const double dx, const double dy
       ) {
 
-  const float w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
-  const float w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
-  const float w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
-  const float w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
+  const scalar_t w11 = (x[ind_xp]-xpts[k])*(y[ind_yp]-ypts[k]);
+  const scalar_t w12 = (x[ind_xp]-xpts[k])*(ypts[k]-y[ind_y]);
+  const scalar_t w21 = (xpts[k]-x[ind_x])*(y[ind_yp]-ypts[k]);
+  const scalar_t w22 = (xpts[k]-x[ind_x])*(ypts[k]-y[ind_y]);
 
   return (w11*F[ind_x*M2+ind_y] + w12*F[ind_x*M2+ind_yp] + w21*F[ind_xp*M2+ind_y] + w22*F[ind_xp*M2+ind_yp])/(dx*dy);
 
 }
 
 
-float compute_G_k_BIquadratic( const int k,
-        const float * xpts, const float * ypts,
-        const float * x, const float * y,
+template <typename scalar_t>
+scalar_t compute_G_k_BIquadratic( const int k,
+        const scalar_t * xpts, const scalar_t * ypts,
+        const scalar_t * x, const scalar_t * y,
         const int ind_x, const int ind_xm, const int ind_xp,
         const int ind_y, const int ind_ym, const int ind_yp,
-        const float * F, const int M2,
-        const float dx, const float dy
+        const scalar_t * F, const int M2,
+        const double dx, const double dy
       ) {
 
   if(ind_xm<0 || ind_ym<0){
@@ -66,21 +70,21 @@ float compute_G_k_BIquadratic( const int k,
 
     // using lagrange polynomials
 
-    const float L0_x = (xpts[k]-x[ind_x])*(xpts[k]-x[ind_xp])/( 2*dx*dx );
-    const float L1_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_xp])/( -dx*dx );
-    const float L2_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_x])/( 2*dx*dx );
+    const scalar_t L0_x = (xpts[k]-x[ind_x])*(xpts[k]-x[ind_xp])/( 2*dx*dx );
+    const scalar_t L1_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_xp])/( -dx*dx );
+    const scalar_t L2_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_x])/( 2*dx*dx );
 
-    const float L0_y = (ypts[k]-y[ind_y])*(ypts[k]-y[ind_yp])/( 2*dy*dy );
-    const float L1_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_yp])/( -dy*dy );
-    const float L2_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_y])/( 2*dy*dy );
+    const scalar_t L0_y = (ypts[k]-y[ind_y])*(ypts[k]-y[ind_yp])/( 2*dy*dy );
+    const scalar_t L1_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_yp])/( -dy*dy );
+    const scalar_t L2_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_y])/( 2*dy*dy );
 
-    // const float L0_x = (xpts[k]-x[ind_x])*(xpts[k]-x[ind_xp])/( (x[ind_xm]-x[ind_x])*(x[ind_xm]-x[ind_xp]) ); // 2*dx*dx
-    // const float L1_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_xp])/( (x[ind_x]-x[ind_xm])*(x[ind_x]-x[ind_xp]) ); // -dx*dx
-    // const float L2_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_x])/( (x[ind_xp]-x[ind_xm])*(x[ind_xp]-x[ind_x]) ); // 2*dx*dx
+    // const scalar_t L0_x = (xpts[k]-x[ind_x])*(xpts[k]-x[ind_xp])/( (x[ind_xm]-x[ind_x])*(x[ind_xm]-x[ind_xp]) ); // 2*dx*dx
+    // const scalar_t L1_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_xp])/( (x[ind_x]-x[ind_xm])*(x[ind_x]-x[ind_xp]) ); // -dx*dx
+    // const scalar_t L2_x = (xpts[k]-x[ind_xm])*(xpts[k]-x[ind_x])/( (x[ind_xp]-x[ind_xm])*(x[ind_xp]-x[ind_x]) ); // 2*dx*dx
 
-    // const float L0_y = (ypts[k]-y[ind_y])*(ypts[k]-y[ind_yp])/( (y[ind_ym]-y[ind_y])*(y[ind_ym]-y[ind_yp]) );
-    // const float L1_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_yp])/( (y[ind_y]-y[ind_ym])*(y[ind_y]-y[ind_yp]) );
-    // const float L2_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_y])/( (y[ind_yp]-y[ind_ym])*(y[ind_yp]-y[ind_y]) );
+    // const scalar_t L0_y = (ypts[k]-y[ind_y])*(ypts[k]-y[ind_yp])/( (y[ind_ym]-y[ind_y])*(y[ind_ym]-y[ind_yp]) );
+    // const scalar_t L1_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_yp])/( (y[ind_y]-y[ind_ym])*(y[ind_y]-y[ind_yp]) );
+    // const scalar_t L2_y = (ypts[k]-y[ind_ym])*(ypts[k]-y[ind_y])/( (y[ind_yp]-y[ind_ym])*(y[ind_yp]-y[ind_y]) );
 
     return (L0_x*L0_y*F[ind_xm*M2+ind_ym] + L0_x*L1_y*F[ind_xm*M2+ind_y] + L0_x*L2_y*F[ind_xm*M2+ind_yp]
           + L1_x*L0_y*F[ind_x*M2+ind_ym]   + L1_x*L1_y*F[ind_x*M2+ind_y]   + L1_x*L2_y*F[ind_x*M2+ind_yp]
@@ -91,14 +95,13 @@ float compute_G_k_BIquadratic( const int k,
 }
 
 
-namespace extension_interp {
-
-void biquadratic_interpolation_kernel_CPU_padding(float * G, float * F,
-                                        const float * xpts, const float * ypts,
+template <typename scalar_t>
+void biquadratic_interpolation_kernel_CPU_padding(scalar_t * G, scalar_t * F,
+                                        const scalar_t * xpts, const scalar_t * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy,
-                                        const float * x, const float * y,
-                                        const float fill_value)
+                                        double dx, double dy,
+                                        const scalar_t * x, const scalar_t * y,
+                                        double fill_value)
 {
   #pragma omp parallel for
   for(int k=0; k<N; k++){
@@ -125,11 +128,12 @@ void biquadratic_interpolation_kernel_CPU_padding(float * G, float * F,
 }
 
 
-void biquadratic_interpolation_kernel_CPU_linear_extrap_linear(float * G, float * F,
-                                        const float * xpts, const float * ypts,
+template <typename scalar_t>
+void biquadratic_interpolation_kernel_CPU_linear_extrap_linear(scalar_t * G, scalar_t * F,
+                                        const scalar_t * xpts, const scalar_t * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy,
-                                        const float * x, const float * y)
+                                        double dx, double dy,
+                                        const scalar_t * x, const scalar_t * y)
 {
   #pragma omp parallel for
   for(int k=0; k<N; k++){
@@ -174,11 +178,12 @@ void biquadratic_interpolation_kernel_CPU_linear_extrap_linear(float * G, float 
 }
 
 
-void biquadratic_interpolation_kernel_CPU_nearest(float * G, float * F,
-                                        const float * xpts, const float * ypts,
+template <typename scalar_t>
+void biquadratic_interpolation_kernel_CPU_nearest(scalar_t * G, scalar_t * F,
+                                        const scalar_t * xpts, const scalar_t * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy,
-                                        const float * x, const float * y)
+                                        double dx, double dy,
+                                        const scalar_t * x, const scalar_t * y)
 {
 
   #pragma omp parallel for
@@ -219,12 +224,13 @@ void biquadratic_interpolation_kernel_CPU_nearest(float * G, float * F,
   }
 }
 
-void bilinear_interpolation_kernel_CPU_padding(float * G, float * F,
-                                        const float * xpts, const float * ypts,
+template <typename scalar_t>
+void bilinear_interpolation_kernel_CPU_padding(scalar_t * G, scalar_t * F,
+                                        const scalar_t * xpts, const scalar_t * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy,
-                                        const float * x, const float * y,
-                                        const float fill_value)
+                                        double dx, double dy,
+                                        const scalar_t * x, const scalar_t * y,
+                                        double fill_value)
 {
   #pragma omp parallel for
   for(int k=0; k<N; k++){
@@ -249,11 +255,13 @@ void bilinear_interpolation_kernel_CPU_padding(float * G, float * F,
   }
 }
 
-void bilinear_interpolation_kernel_CPU_linear_extrap_linear(float * G, float * F,
-                                        const float * xpts, const float * ypts,
+
+template <typename scalar_t>
+void bilinear_interpolation_kernel_CPU_linear_extrap_linear(scalar_t * G, scalar_t * F,
+                                        const scalar_t * xpts, const scalar_t * ypts,
                                         const int M1, const int M2, const int N,
-                                        const float dx, const float dy,
-                                        const float * x, const float * y)
+                                        double dx, double dy,
+                                        const scalar_t * x, const scalar_t * y)
 {
 
   #pragma omp parallel for
@@ -291,11 +299,12 @@ void bilinear_interpolation_kernel_CPU_linear_extrap_linear(float * G, float * F
 }
 
 
-void bilinear_interpolation_kernel_CPU_linear_extrap_nearest(float * G, float * F,
-  const float * xpts, const float * ypts,
+template <typename scalar_t>
+void bilinear_interpolation_kernel_CPU_linear_extrap_nearest(scalar_t * G, scalar_t * F,
+  const scalar_t * xpts, const scalar_t * ypts,
   const int M1, const int M2, const int N,
-  const float dx, const float dy,
-  const float * x, const float * y) {
+  double dx, double dy,
+  const scalar_t * x, const scalar_t * y) {
 
   #pragma omp parallel for
   for(int k=0; k<N; k++){
@@ -349,23 +358,32 @@ void interp_cpu(
     const int64_t method
   ) {
 
-  at::Tensor F_contig = F.contiguous();
-  float* F_ptr = F_contig.data_ptr<float>();
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(F.scalar_type(), "interp_cpu", [&] {
 
-  at::Tensor xpt_contig = xpt.contiguous();
-  float* xpt_ptr = xpt_contig.data_ptr<float>();
+    at::Tensor F_contig = F.contiguous();
+    scalar_t* F_ptr = F_contig.data_ptr<scalar_t>();
 
-  at::Tensor ypt_contig = ypt.contiguous();
-  float* ypt_ptr = ypt_contig.data_ptr<float>();
+    at::Tensor xpt_contig = xpt.contiguous();
+    const scalar_t* xpt_ptr = xpt_contig.data_ptr<scalar_t>();
 
-  at::Tensor x_contig = x.contiguous();
-  const float* x_ptr = x_contig.data_ptr<float>();
+    at::Tensor ypt_contig = ypt.contiguous();
+    const scalar_t* ypt_ptr = ypt_contig.data_ptr<scalar_t>();
 
-  at::Tensor y_contig = y.contiguous();
-  const float* y_ptr = y_contig.data_ptr<float>();
+    at::Tensor x_contig = x.contiguous();
+    const scalar_t* x_ptr = x_contig.data_ptr<scalar_t>();
 
-  float* G_ptr = G.data_ptr<float>();
-  const int N  = G.numel();
+    at::Tensor y_contig = y.contiguous();
+    const scalar_t* y_ptr = y_contig.data_ptr<scalar_t>();
+
+    scalar_t* G_ptr = G.data_ptr<scalar_t>();
+    const int N  = G.numel();
+
+    // bilinear_interpolation_kernel_CPU_padding(G_ptr, F_ptr,
+    //                             xpt_ptr, ypt_ptr,
+    //                             M1, M2, N,
+    //                             dx, dy,
+    //                             x_ptr, y_ptr,
+    //                             fill_value);
 
   if (method==0) {
     if(fill_method==1) {
@@ -415,6 +433,13 @@ void interp_cpu(
                                         x_ptr, y_ptr);
     }
   }
+
+
+
+  });
+
+
+
 }
 
 // Defines the operators

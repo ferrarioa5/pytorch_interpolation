@@ -10,6 +10,8 @@ import torch_interpolations as torch_interpolate
 import time
 import matplotlib.pyplot as plt
 
+torch.set_default_dtype(torch.float64)
+
 N1 = 5000
 N2 = 5000
 

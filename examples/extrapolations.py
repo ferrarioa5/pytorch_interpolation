@@ -5,8 +5,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-device="cpu"
+device="cuda"
 torch.set_num_threads(8)
+torch.set_default_dtype(torch.float64)
 
 M1  = 2**5
 M2  = 2**5
