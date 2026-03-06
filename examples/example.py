@@ -1,6 +1,18 @@
 
 import os
+import sys
+
+# Fix sys.path so the installed C++/CUDA extension is found, not the local source dir
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_dir = os.path.dirname(_script_dir)
+_saved_path = sys.path.copy()
+sys.path = [p for p in sys.path if os.path.abspath(p) not in (_script_dir, _repo_dir)]
+
 from pytorch_interpolation import RegularGridInterpolator as my_rgi
+from pytorch_interpolation import RegularGridInterpolatorGridSample as gs_rgi
+
+sys.path = _saved_path
+
 from scipy.interpolate import RegularGridInterpolator as scipy_rgi
 import torch
 import numpy as np
@@ -32,12 +44,16 @@ F=function(X,Y)
 interp1 = scipy_rgi((x.cpu().numpy(), y.cpu().numpy()), F.cpu().numpy(),bounds_error=False, fill_value=0)
 G1 = interp1(np.array([xpt.cpu().numpy(), ypt.cpu().numpy()]).T)
 
-# implementation
+# original C++/CUDA implementation
 interp2 = my_rgi((x, y), F, fill_value=0, method=1)
 G2 = interp2(xpt,ypt)
 
+# grid_sample implementation (bicubic)
+interp3 = gs_rgi((x, y), F, fill_value=0.0, method=1)
+G3 = interp3(xpt, ypt)
 
-fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(18,6))
+
+fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(24,6))
 
 vmin,vmax = (fun(np.concatenate([F.cpu().numpy().flatten(),G1])) for fun in (np.min,np.max))
 
@@ -57,11 +73,18 @@ ax[1].set_xlim([xpt.cpu().numpy().min(),xpt.cpu().numpy().max()])
 ax[1].set_ylim([ypt.cpu().numpy().min(),ypt.cpu().numpy().max()])
 
 ax[2].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G2.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
-ax[2].set_title("pytorch_interpolation interpolation")
+ax[2].set_title("pytorch_interpolation (biquadratic)")
 ax[2].set_xlabel("x")
 ax[2].set_ylabel("y")
 ax[2].set_xlim([xpt.cpu().numpy().min(),xpt.cpu().numpy().max()])
 ax[2].set_ylim([ypt.cpu().numpy().min(),ypt.cpu().numpy().max()])
+
+ax[3].scatter(xpt.cpu().numpy(),ypt.cpu().numpy(),c=G3.cpu().numpy(),cmap=plt.cm.viridis,vmin=vmin,vmax=vmax)
+ax[3].set_title("grid_sample (bicubic)")
+ax[3].set_xlabel("x")
+ax[3].set_ylabel("y")
+ax[3].set_xlim([xpt.cpu().numpy().min(),xpt.cpu().numpy().max()])
+ax[3].set_ylim([ypt.cpu().numpy().min(),ypt.cpu().numpy().max()])
 
 
 
