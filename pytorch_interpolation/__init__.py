@@ -1,9 +1,15 @@
 import torch
-from . import _C
-from .ops import bilinear_interp, trilinear_interp_3d
-from .interp import RegularGridInterpolator, RegularGridInterpolatorPyTorch, RegularGridInterpolator3D
+
+try:
+    from . import _C
+    from .ops import bilinear_interp, trilinear_interp_3d
+    from .interp import RegularGridInterpolator, RegularGridInterpolatorPyTorch, RegularGridInterpolator3D
+except ImportError:
+    _C = None
+
 from .grid_sample_interp import RegularGridInterpolatorGridSample
 from .grid_sample_interp import RegularGridInterpolatorGridSample3D
+from .inn import INNInterpolator
 
 
 class RegularGridInterpolatorAutomatic:
@@ -48,9 +54,14 @@ class RegularGridInterpolatorAutomatic:
         self._ndim = len(points)
 
         if self._ndim == 2:
-            self._impl = RegularGridInterpolator(
-                points, F, fill_value=fill_value, method=method,
-            )
+            if _C is not None:
+                self._impl = RegularGridInterpolator(
+                    points, F, fill_value=fill_value, method=method,
+                )
+            else:
+                self._impl = RegularGridInterpolatorGridSample(
+                    points, F, fill_value=fill_value, method=method,
+                )
         elif self._ndim == 3:
             self._impl = RegularGridInterpolatorGridSample3D(
                 points, F, fill_value=fill_value,
