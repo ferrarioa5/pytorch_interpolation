@@ -319,6 +319,168 @@ __global__ void bilinear_interpolation_kernel_CUDA_linear_extrap_nearest(
 
 
 
+// =====================================================================
+//  3-D  trilinear  CUDA kernels
+// =====================================================================
+
+template <typename scalar_t>
+__device__ void compute_G_k_TrilinearCUDA(
+        const int k,
+        const scalar_t * xpts, const scalar_t * ypts, const scalar_t * zpts,
+        const scalar_t * x, const scalar_t * y, const scalar_t * z,
+        const int ind_x, const int ind_xp,
+        const int ind_y, const int ind_yp,
+        const int ind_z, const int ind_zp,
+        const scalar_t * F, const int M2, const int M3,
+        const double dx, const double dy, const double dz,
+        scalar_t& out
+      ) {
+
+  const scalar_t wx0 = x[ind_xp] - xpts[k];
+  const scalar_t wx1 = xpts[k]   - x[ind_x];
+  const scalar_t wy0 = y[ind_yp] - ypts[k];
+  const scalar_t wy1 = ypts[k]   - y[ind_y];
+  const scalar_t wz0 = z[ind_zp] - zpts[k];
+  const scalar_t wz1 = zpts[k]   - z[ind_z];
+
+  const int s2 = M3;          // stride for y
+  const int s1 = M2 * M3;     // stride for x
+
+  out = (
+      wx0 * wy0 * wz0 * F[ind_x  * s1 + ind_y  * s2 + ind_z ]
+    + wx0 * wy0 * wz1 * F[ind_x  * s1 + ind_y  * s2 + ind_zp]
+    + wx0 * wy1 * wz0 * F[ind_x  * s1 + ind_yp * s2 + ind_z ]
+    + wx0 * wy1 * wz1 * F[ind_x  * s1 + ind_yp * s2 + ind_zp]
+    + wx1 * wy0 * wz0 * F[ind_xp * s1 + ind_y  * s2 + ind_z ]
+    + wx1 * wy0 * wz1 * F[ind_xp * s1 + ind_y  * s2 + ind_zp]
+    + wx1 * wy1 * wz0 * F[ind_xp * s1 + ind_yp * s2 + ind_z ]
+    + wx1 * wy1 * wz1 * F[ind_xp * s1 + ind_yp * s2 + ind_zp]
+  ) / (scalar_t)(dx * dy * dz);
+}
+
+// --- fill_method = 1: constant padding ---
+template <typename scalar_t>
+__global__ void trilinear_interpolation_kernel_CUDA_padding(
+  scalar_t* G, const scalar_t* F,
+  const scalar_t* xpts, const scalar_t* ypts, const scalar_t* zpts,
+  const int M1, const int M2, const int M3, const int N,
+  const double dx, const double dy, const double dz,
+  const scalar_t* x, const scalar_t* y, const scalar_t* z,
+  const double fill_value) {
+
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if (k < N) {
+    const int ind_x  = floor((xpts[k] - x[0]) / dx);
+    const int ind_xp = ind_x + 1;
+    const int ind_y  = floor((ypts[k] - y[0]) / dy);
+    const int ind_yp = ind_y + 1;
+    const int ind_z  = floor((zpts[k] - z[0]) / dz);
+    const int ind_zp = ind_z + 1;
+
+    if (0 <= ind_x && ind_xp < M1 &&
+        0 <= ind_y && ind_yp < M2 &&
+        0 <= ind_z && ind_zp < M3) {
+      compute_G_k_TrilinearCUDA(
+        k, xpts, ypts, zpts, x, y, z,
+        ind_x, ind_xp, ind_y, ind_yp, ind_z, ind_zp,
+        F, M2, M3, dx, dy, dz, G[k]);
+    } else {
+      G[k] = fill_value;
+    }
+  }
+}
+
+// --- fill_method = 2: linear extrapolation (clamp indices) ---
+template <typename scalar_t>
+__global__ void trilinear_interpolation_kernel_CUDA_linear_extrap_linear(
+  scalar_t* G, const scalar_t* F,
+  const scalar_t* xpts, const scalar_t* ypts, const scalar_t* zpts,
+  const int M1, const int M2, const int M3, const int N,
+  const double dx, const double dy, const double dz,
+  const scalar_t* x, const scalar_t* y, const scalar_t* z) {
+
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if (k < N) {
+    int ind_x  = floor((xpts[k] - x[0]) / dx);
+    int ind_xp = ind_x + 1;
+    int ind_y  = floor((ypts[k] - y[0]) / dy);
+    int ind_yp = ind_y + 1;
+    int ind_z  = floor((zpts[k] - z[0]) / dz);
+    int ind_zp = ind_z + 1;
+
+    if (ind_x < 0)    { ind_x = 0;    ind_xp = 1; }
+    if (ind_xp >= M1)  { ind_x = M1-2; ind_xp = M1-1; }
+    if (ind_y < 0)    { ind_y = 0;    ind_yp = 1; }
+    if (ind_yp >= M2)  { ind_y = M2-2; ind_yp = M2-1; }
+    if (ind_z < 0)    { ind_z = 0;    ind_zp = 1; }
+    if (ind_zp >= M3)  { ind_z = M3-2; ind_zp = M3-1; }
+
+    compute_G_k_TrilinearCUDA(
+      k, xpts, ypts, zpts, x, y, z,
+      ind_x, ind_xp, ind_y, ind_yp, ind_z, ind_zp,
+      F, M2, M3, dx, dy, dz, G[k]);
+  }
+}
+
+// --- fill_method = 3: border / nearest (match grid_sample 'border' mode) ---
+//     Clamp query coordinate to grid domain, then interpolate normally.
+template <typename scalar_t>
+__global__ void trilinear_interpolation_kernel_CUDA_nearest(
+  scalar_t* G, const scalar_t* F,
+  const scalar_t* xpts, const scalar_t* ypts, const scalar_t* zpts,
+  const int M1, const int M2, const int M3, const int N,
+  const double dx, const double dy, const double dz,
+  const scalar_t* x, const scalar_t* y, const scalar_t* z) {
+
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  if (k < N) {
+    // Clamp query coords to grid domain
+    scalar_t xq = max(x[0], min(xpts[k], x[M1-1]));
+    scalar_t yq = max(y[0], min(ypts[k], y[M2-1]));
+    scalar_t zq = max(z[0], min(zpts[k], z[M3-1]));
+
+    int ind_x = floor((xq - x[0]) / dx);
+    int ind_y = floor((yq - y[0]) / dy);
+    int ind_z = floor((zq - z[0]) / dz);
+
+    // Clamp indices to valid interpolation range [0, M-2]
+    ind_x = max(0, min(ind_x, M1-2));
+    ind_y = max(0, min(ind_y, M2-2));
+    ind_z = max(0, min(ind_z, M3-2));
+
+    const int ind_xp = ind_x + 1;
+    const int ind_yp = ind_y + 1;
+    const int ind_zp = ind_z + 1;
+
+    // Trilinear weights using clamped coordinates
+    const scalar_t wx0 = x[ind_xp] - xq;
+    const scalar_t wx1 = xq        - x[ind_x];
+    const scalar_t wy0 = y[ind_yp] - yq;
+    const scalar_t wy1 = yq        - y[ind_y];
+    const scalar_t wz0 = z[ind_zp] - zq;
+    const scalar_t wz1 = zq        - z[ind_z];
+
+    const int s2 = M3;
+    const int s1 = M2 * M3;
+
+    G[k] = (
+        wx0 * wy0 * wz0 * F[ind_x  * s1 + ind_y  * s2 + ind_z ]
+      + wx0 * wy0 * wz1 * F[ind_x  * s1 + ind_y  * s2 + ind_zp]
+      + wx0 * wy1 * wz0 * F[ind_x  * s1 + ind_yp * s2 + ind_z ]
+      + wx0 * wy1 * wz1 * F[ind_x  * s1 + ind_yp * s2 + ind_zp]
+      + wx1 * wy0 * wz0 * F[ind_xp * s1 + ind_y  * s2 + ind_z ]
+      + wx1 * wy0 * wz1 * F[ind_xp * s1 + ind_y  * s2 + ind_zp]
+      + wx1 * wy1 * wz0 * F[ind_xp * s1 + ind_yp * s2 + ind_z ]
+      + wx1 * wy1 * wz1 * F[ind_xp * s1 + ind_yp * s2 + ind_zp]
+    ) / (scalar_t)(dx * dy * dz);
+  }
+}
+
+
+// =====================================================================
+//  Dispatch functions
+// =====================================================================
+
 void interp_cuda(
     const at::Tensor& F,
     at::Tensor& G,
@@ -338,28 +500,24 @@ void interp_cuda(
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   const int N  = G.numel();
 
+  // Adaptive block size: use fewer threads per block for small N to
+  // reduce wasted lanes and launch overhead.  Always a multiple of the
+  // warp size (32) so no partial warps are scheduled.
+  const int blockSize = (N <= 128) ? 32 : (N <= 4096) ? 128 : 256;
+  const int numBlocks = (N + blockSize - 1) / blockSize;
+
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(F.scalar_type(), "interp_cuda", [&] {
 
-    at::Tensor F_contig = F.contiguous();
-    const scalar_t* F_ptr = F_contig.data_ptr<scalar_t>();
-
-    at::Tensor xpt_contig = xpt.contiguous();
-    const scalar_t* xpt_ptr = xpt_contig.data_ptr<scalar_t>();
-
-    at::Tensor ypt_contig = ypt.contiguous();
-    const scalar_t* ypt_ptr = ypt_contig.data_ptr<scalar_t>();
-
-    at::Tensor x_contig = x.contiguous();
-    const scalar_t* x_ptr = x_contig.data_ptr<scalar_t>();
-
-    at::Tensor y_contig = y.contiguous();
-    const scalar_t* y_ptr = y_contig.data_ptr<scalar_t>();
-
-    scalar_t* G_ptr = G.data_ptr<scalar_t>();
+    const scalar_t* F_ptr   = F.contiguous().data_ptr<scalar_t>();
+    const scalar_t* xpt_ptr = xpt.contiguous().data_ptr<scalar_t>();
+    const scalar_t* ypt_ptr = ypt.contiguous().data_ptr<scalar_t>();
+    const scalar_t* x_ptr   = x.contiguous().data_ptr<scalar_t>();
+    const scalar_t* y_ptr   = y.contiguous().data_ptr<scalar_t>();
+    scalar_t* G_ptr         = G.data_ptr<scalar_t>();
 
   if (method==0) {
     if(fill_method==1) {
-      bilinear_interpolation_kernel_CUDA_padding<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      bilinear_interpolation_kernel_CUDA_padding<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -368,7 +526,7 @@ void interp_cuda(
                                       fill_value);
     }
     else if(fill_method==2) {
-      bilinear_interpolation_kernel_CUDA_linear_extrap_linear<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      bilinear_interpolation_kernel_CUDA_linear_extrap_linear<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -376,7 +534,7 @@ void interp_cuda(
                                       x_ptr, y_ptr);
     }
     else if(fill_method==3) {
-      bilinear_interpolation_kernel_CUDA_linear_extrap_nearest<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      bilinear_interpolation_kernel_CUDA_linear_extrap_nearest<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -386,7 +544,7 @@ void interp_cuda(
   }
   else if(method==1) {
     if(fill_method==1) {
-      biquadratic_interpolation_kernel_CUDA_padding<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      biquadratic_interpolation_kernel_CUDA_padding<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -395,7 +553,7 @@ void interp_cuda(
                                       fill_value);
     }
     else if(fill_method==2) {
-      biquadratic_interpolation_kernel_CUDA_linear_extrap_linear<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      biquadratic_interpolation_kernel_CUDA_linear_extrap_linear<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -403,7 +561,7 @@ void interp_cuda(
                                       x_ptr, y_ptr);
     }
     else if(fill_method==3) {
-      biquadratic_interpolation_kernel_CUDA_linear_extrap_nearest<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
+      biquadratic_interpolation_kernel_CUDA_linear_extrap_nearest<scalar_t><<<numBlocks, blockSize, 0, stream>>>(
                                       G_ptr, F_ptr,
                                       xpt_ptr, ypt_ptr,
                                       M1, M2, N,
@@ -412,21 +570,75 @@ void interp_cuda(
     }
   }
 
-    // biquadratic_interpolation_kernel_CUDA_padding<scalar_t><<<(N+255)/256, 256, 0, stream>>>(
-    //                                 G_ptr, F_ptr,
-    //                                 xpt_ptr, ypt_ptr,
-    //                                 M1, M2, N,
-    //                                 dx, dy,
-    //                                 x_ptr, y_ptr,
-    //                                 fill_value);
   });
 
 
 }
 
-  // Registers CUDA implementation
+void interp3d_cuda(
+    const at::Tensor& F,
+    at::Tensor& G,
+    const at::Tensor& x,
+    const at::Tensor& y,
+    const at::Tensor& z,
+    const at::Tensor& xpt,
+    const at::Tensor& ypt,
+    const at::Tensor& zpt,
+    const int64_t M1,
+    const int64_t M2,
+    const int64_t M3,
+    const double dx,
+    const double dy,
+    const double dz,
+    const int64_t fill_method,
+    const double fill_value
+  ) {
+
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  const int N = G.numel();
+
+  const int blockSize = (N <= 128) ? 32 : (N <= 4096) ? 128 : 256;
+  const int numBlocks = (N + blockSize - 1) / blockSize;
+
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(F.scalar_type(), "interp3d_cuda", [&] {
+
+    const scalar_t* F_ptr   = F.contiguous().data_ptr<scalar_t>();
+    const scalar_t* xpt_ptr = xpt.contiguous().data_ptr<scalar_t>();
+    const scalar_t* ypt_ptr = ypt.contiguous().data_ptr<scalar_t>();
+    const scalar_t* zpt_ptr = zpt.contiguous().data_ptr<scalar_t>();
+    const scalar_t* x_ptr   = x.contiguous().data_ptr<scalar_t>();
+    const scalar_t* y_ptr   = y.contiguous().data_ptr<scalar_t>();
+    const scalar_t* z_ptr   = z.contiguous().data_ptr<scalar_t>();
+    scalar_t* G_ptr         = G.data_ptr<scalar_t>();
+
+    if (fill_method == 1) {
+      trilinear_interpolation_kernel_CUDA_padding<scalar_t>
+        <<<numBlocks, blockSize, 0, stream>>>(
+          G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+          M1, M2, M3, N, dx, dy, dz,
+          x_ptr, y_ptr, z_ptr, fill_value);
+    }
+    else if (fill_method == 2) {
+      trilinear_interpolation_kernel_CUDA_linear_extrap_linear<scalar_t>
+        <<<numBlocks, blockSize, 0, stream>>>(
+          G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+          M1, M2, M3, N, dx, dy, dz,
+          x_ptr, y_ptr, z_ptr);
+    }
+    else if (fill_method == 3) {
+      trilinear_interpolation_kernel_CUDA_nearest<scalar_t>
+        <<<numBlocks, blockSize, 0, stream>>>(
+          G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+          M1, M2, M3, N, dx, dy, dz,
+          x_ptr, y_ptr, z_ptr);
+    }
+  });
+}
+
+  // Registers CUDA implementations
 TORCH_LIBRARY_IMPL(extension_interp, CUDA, m) {
   m.impl("bilinear_interp", &interp_cuda);
+  m.impl("trilinear_interp_3d", &interp3d_cuda);
 }
 
 }

@@ -10,7 +10,7 @@ Fast interpolation in PyTorch on regular grids for unstructured query points, an
 |---|---|---|
 | **2-D** | Bilinear, Biquadratic | Custom C++/CUDA kernels |
 | **2-D** | Bilinear | `torch.nn.functional.grid_sample` (no build required) |
-| **3-D** | Trilinear | `torch.nn.functional.grid_sample` (no build required) |
+| **3-D** | Trilinear | Custom C++/CUDA kernel (default), or `torch.nn.functional.grid_sample` |
 
 The C++/CUDA backend significantly outperforms Scipy and other Python-based packages.
 The `grid_sample`-backed interpolators work out of the box with any PyTorch installation — no compilation step needed.
@@ -84,17 +84,19 @@ An example of the three extrapolation methods' usage is in `extrapolations.py`, 
 
 ## 3-D trilinear interpolation
 
-`RegularGridInterpolatorGridSample3D` provides GPU-accelerated trilinear interpolation on 3-D regular grids.
-It uses the 5-D path of `torch.nn.functional.grid_sample`, which maps to cuDNN's volumetric sampling — no custom C++/CUDA build required.
+
+`RegularGridInterpolator3D` provides GPU-accelerated trilinear interpolation on 3-D regular grids using a custom C++/CUDA kernel (default). This is now the recommended backend for 3-D interpolation and is used in all main examples.
 
 ```python
-from pytorch_interpolation import RegularGridInterpolatorGridSample3D
+from pytorch_interpolation import RegularGridInterpolator3D
 
 # x, y, z: 1-D tensors of grid coordinates (ascending order)
 # F: 3-D tensor of shape (len(x), len(y), len(z))
-interp = RegularGridInterpolatorGridSample3D((x, y, z), F, fill_value=0.0)
+interp = RegularGridInterpolator3D((x, y, z), F, fill_value=0.0)
 G = interp(xpt, ypt, zpt)
 ```
+
+The legacy `RegularGridInterpolatorGridSample3D` is still available for compatibility and uses the 5-D path of `torch.nn.functional.grid_sample` (no custom build required).
 
 The `fill_value` parameter behaves the same as in the 2-D case: `0.0` (default) for zero-padding, `"nearest"` for clamp/border extrapolation.
 
@@ -106,10 +108,11 @@ A full example is in `example_3d.py`, which benchmarks GPU vs CPU performance an
 
 ## Automatic backend selection
 
+
 `RegularGridInterpolatorAutomatic` automatically selects the best backend based on the number of grid axes:
 
 - **2 axes** → C++/CUDA kernel (`RegularGridInterpolator`, supports bilinear and biquadratic)
-- **3 axes** → `grid_sample` trilinear (`RegularGridInterpolatorGridSample3D`)
+- **3 axes** → C++/CUDA kernel (`RegularGridInterpolator3D`, trilinear)
 
 ```python
 from pytorch_interpolation import RegularGridInterpolatorAutomatic
@@ -117,6 +120,7 @@ from pytorch_interpolation import RegularGridInterpolatorAutomatic
 # 2-D
 interp_2d = RegularGridInterpolatorAutomatic((x, y), F_2d, method=0)
 result = interp_2d(xpt, ypt)
+
 
 # 3-D
 interp_3d = RegularGridInterpolatorAutomatic((x, y, z), F_3d)

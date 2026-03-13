@@ -342,6 +342,155 @@ void bilinear_interpolation_kernel_CPU_linear_extrap_nearest(scalar_t * G, scala
 }
 
 
+// =====================================================================
+//  3-D  trilinear  CPU kernels
+// =====================================================================
+
+template <typename scalar_t>
+scalar_t compute_G_k_Trilinear(
+        const int k,
+        const scalar_t * xpts, const scalar_t * ypts, const scalar_t * zpts,
+        const scalar_t * x, const scalar_t * y, const scalar_t * z,
+        const int ind_x, const int ind_xp,
+        const int ind_y, const int ind_yp,
+        const int ind_z, const int ind_zp,
+        const scalar_t * F, const int M2, const int M3,
+        const double dx, const double dy, const double dz
+      ) {
+
+  const scalar_t wx0 = x[ind_xp] - xpts[k];
+  const scalar_t wx1 = xpts[k]   - x[ind_x];
+  const scalar_t wy0 = y[ind_yp] - ypts[k];
+  const scalar_t wy1 = ypts[k]   - y[ind_y];
+  const scalar_t wz0 = z[ind_zp] - zpts[k];
+  const scalar_t wz1 = zpts[k]   - z[ind_z];
+
+  const int s2 = M3;
+  const int s1 = M2 * M3;
+
+  return (
+      wx0 * wy0 * wz0 * F[ind_x  * s1 + ind_y  * s2 + ind_z ]
+    + wx0 * wy0 * wz1 * F[ind_x  * s1 + ind_y  * s2 + ind_zp]
+    + wx0 * wy1 * wz0 * F[ind_x  * s1 + ind_yp * s2 + ind_z ]
+    + wx0 * wy1 * wz1 * F[ind_x  * s1 + ind_yp * s2 + ind_zp]
+    + wx1 * wy0 * wz0 * F[ind_xp * s1 + ind_y  * s2 + ind_z ]
+    + wx1 * wy0 * wz1 * F[ind_xp * s1 + ind_y  * s2 + ind_zp]
+    + wx1 * wy1 * wz0 * F[ind_xp * s1 + ind_yp * s2 + ind_z ]
+    + wx1 * wy1 * wz1 * F[ind_xp * s1 + ind_yp * s2 + ind_zp]
+  ) / (scalar_t)(dx * dy * dz);
+}
+
+template <typename scalar_t>
+void trilinear_interpolation_kernel_CPU_padding(
+  scalar_t * G, scalar_t * F,
+  const scalar_t * xpts, const scalar_t * ypts, const scalar_t * zpts,
+  const int M1, const int M2, const int M3, const int N,
+  double dx, double dy, double dz,
+  const scalar_t * x, const scalar_t * y, const scalar_t * z,
+  double fill_value)
+{
+  #pragma omp parallel for
+  for(int k=0; k<N; k++){
+    const int ind_x  = floor((xpts[k]-x[0])/dx);
+    const int ind_xp = ind_x+1;
+    const int ind_y  = floor((ypts[k]-y[0])/dy);
+    const int ind_yp = ind_y+1;
+    const int ind_z  = floor((zpts[k]-z[0])/dz);
+    const int ind_zp = ind_z+1;
+
+    if (0<=ind_x && ind_xp<M1 && 0<=ind_y && ind_yp<M2 && 0<=ind_z && ind_zp<M3) {
+      G[k] = compute_G_k_Trilinear(
+        k, xpts, ypts, zpts, x, y, z,
+        ind_x, ind_xp, ind_y, ind_yp, ind_z, ind_zp,
+        F, M2, M3, dx, dy, dz);
+    } else {
+      G[k] = fill_value;
+    }
+  }
+}
+
+template <typename scalar_t>
+void trilinear_interpolation_kernel_CPU_linear_extrap_linear(
+  scalar_t * G, scalar_t * F,
+  const scalar_t * xpts, const scalar_t * ypts, const scalar_t * zpts,
+  const int M1, const int M2, const int M3, const int N,
+  double dx, double dy, double dz,
+  const scalar_t * x, const scalar_t * y, const scalar_t * z)
+{
+  #pragma omp parallel for
+  for(int k=0; k<N; k++){
+    int ind_x  = floor((xpts[k]-x[0])/dx);
+    int ind_xp = ind_x+1;
+    int ind_y  = floor((ypts[k]-y[0])/dy);
+    int ind_yp = ind_y+1;
+    int ind_z  = floor((zpts[k]-z[0])/dz);
+    int ind_zp = ind_z+1;
+
+    if (ind_x<0)   { ind_x=0;    ind_xp=1; }
+    if (ind_xp>=M1) { ind_x=M1-2; ind_xp=M1-1; }
+    if (ind_y<0)   { ind_y=0;    ind_yp=1; }
+    if (ind_yp>=M2) { ind_y=M2-2; ind_yp=M2-1; }
+    if (ind_z<0)   { ind_z=0;    ind_zp=1; }
+    if (ind_zp>=M3) { ind_z=M3-2; ind_zp=M3-1; }
+
+    G[k] = compute_G_k_Trilinear(
+      k, xpts, ypts, zpts, x, y, z,
+      ind_x, ind_xp, ind_y, ind_yp, ind_z, ind_zp,
+      F, M2, M3, dx, dy, dz);
+  }
+}
+
+template <typename scalar_t>
+void trilinear_interpolation_kernel_CPU_nearest(
+  scalar_t * G, scalar_t * F,
+  const scalar_t * xpts, const scalar_t * ypts, const scalar_t * zpts,
+  const int M1, const int M2, const int M3, const int N,
+  double dx, double dy, double dz,
+  const scalar_t * x, const scalar_t * y, const scalar_t * z)
+{
+  #pragma omp parallel for
+  for(int k=0; k<N; k++){
+    // Clamp query coords to grid domain
+    scalar_t xq = std::max(x[0], std::min(xpts[k], x[M1-1]));
+    scalar_t yq = std::max(y[0], std::min(ypts[k], y[M2-1]));
+    scalar_t zq = std::max(z[0], std::min(zpts[k], z[M3-1]));
+
+    int ind_x = floor((xq - x[0]) / dx);
+    int ind_y = floor((yq - y[0]) / dy);
+    int ind_z = floor((zq - z[0]) / dz);
+
+    ind_x = std::max(0, std::min(ind_x, M1-2));
+    ind_y = std::max(0, std::min(ind_y, M2-2));
+    ind_z = std::max(0, std::min(ind_z, M3-2));
+
+    int ind_xp = ind_x + 1;
+    int ind_yp = ind_y + 1;
+    int ind_zp = ind_z + 1;
+
+    scalar_t wx0 = x[ind_xp] - xq;
+    scalar_t wx1 = xq        - x[ind_x];
+    scalar_t wy0 = y[ind_yp] - yq;
+    scalar_t wy1 = yq        - y[ind_y];
+    scalar_t wz0 = z[ind_zp] - zq;
+    scalar_t wz1 = zq        - z[ind_z];
+
+    int s2 = M3;
+    int s1 = M2 * M3;
+
+    G[k] = (
+        wx0 * wy0 * wz0 * F[ind_x  * s1 + ind_y  * s2 + ind_z ]
+      + wx0 * wy0 * wz1 * F[ind_x  * s1 + ind_y  * s2 + ind_zp]
+      + wx0 * wy1 * wz0 * F[ind_x  * s1 + ind_yp * s2 + ind_z ]
+      + wx0 * wy1 * wz1 * F[ind_x  * s1 + ind_yp * s2 + ind_zp]
+      + wx1 * wy0 * wz0 * F[ind_xp * s1 + ind_y  * s2 + ind_z ]
+      + wx1 * wy0 * wz1 * F[ind_xp * s1 + ind_y  * s2 + ind_zp]
+      + wx1 * wy1 * wz0 * F[ind_xp * s1 + ind_yp * s2 + ind_z ]
+      + wx1 * wy1 * wz1 * F[ind_xp * s1 + ind_yp * s2 + ind_zp]
+    ) / (scalar_t)(dx * dy * dz);
+  }
+}
+
+
 void interp_cpu(
     const at::Tensor& F,
     at::Tensor& G,
@@ -445,11 +594,74 @@ void interp_cpu(
 // Defines the operators
 TORCH_LIBRARY(extension_interp, m) {
   m.def("bilinear_interp(Tensor F, Tensor G , Tensor x, Tensor y, Tensor xpt, Tensor ypt, int M1, int M2, float dx, float dy, int fill_method, float fill_value, int method) -> ()");
+  m.def("trilinear_interp_3d(Tensor F, Tensor G, Tensor x, Tensor y, Tensor z, Tensor xpt, Tensor ypt, Tensor zpt, int M1, int M2, int M3, float dx, float dy, float dz, int fill_method, float fill_value) -> ()");
 }
 
-// Registers CPU implementation
+
+void interp3d_cpu(
+    const at::Tensor& F,
+    at::Tensor& G,
+    const at::Tensor& x,
+    const at::Tensor& y,
+    const at::Tensor& z,
+    const at::Tensor& xpt,
+    const at::Tensor& ypt,
+    const at::Tensor& zpt,
+    const int64_t M1,
+    const int64_t M2,
+    const int64_t M3,
+    const double dx,
+    const double dy,
+    const double dz,
+    const int64_t fill_method,
+    const double fill_value
+  ) {
+
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(F.scalar_type(), "interp3d_cpu", [&] {
+
+    at::Tensor F_contig   = F.contiguous();
+    at::Tensor xpt_contig = xpt.contiguous();
+    at::Tensor ypt_contig = ypt.contiguous();
+    at::Tensor zpt_contig = zpt.contiguous();
+    at::Tensor x_contig   = x.contiguous();
+    at::Tensor y_contig   = y.contiguous();
+    at::Tensor z_contig   = z.contiguous();
+
+    scalar_t* F_ptr         = F_contig.data_ptr<scalar_t>();
+    const scalar_t* xpt_ptr = xpt_contig.data_ptr<scalar_t>();
+    const scalar_t* ypt_ptr = ypt_contig.data_ptr<scalar_t>();
+    const scalar_t* zpt_ptr = zpt_contig.data_ptr<scalar_t>();
+    const scalar_t* x_ptr   = x_contig.data_ptr<scalar_t>();
+    const scalar_t* y_ptr   = y_contig.data_ptr<scalar_t>();
+    const scalar_t* z_ptr   = z_contig.data_ptr<scalar_t>();
+    scalar_t* G_ptr         = G.data_ptr<scalar_t>();
+    const int N = G.numel();
+
+    if (fill_method == 1) {
+      trilinear_interpolation_kernel_CPU_padding(
+        G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+        M1, M2, M3, N, dx, dy, dz,
+        x_ptr, y_ptr, z_ptr, fill_value);
+    }
+    else if (fill_method == 2) {
+      trilinear_interpolation_kernel_CPU_linear_extrap_linear(
+        G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+        M1, M2, M3, N, dx, dy, dz,
+        x_ptr, y_ptr, z_ptr);
+    }
+    else if (fill_method == 3) {
+      trilinear_interpolation_kernel_CPU_nearest(
+        G_ptr, F_ptr, xpt_ptr, ypt_ptr, zpt_ptr,
+        M1, M2, M3, N, dx, dy, dz,
+        x_ptr, y_ptr, z_ptr);
+    }
+  });
+}
+
+// Registers CPU implementations
 TORCH_LIBRARY_IMPL(extension_interp, CPU, m) {
   m.impl("bilinear_interp", &interp_cpu);
+  m.impl("trilinear_interp_3d", &interp3d_cpu);
 }
 
 }

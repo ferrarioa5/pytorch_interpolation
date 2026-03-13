@@ -49,6 +49,7 @@ def time_cpu_pytorch_interp(N):
     return time.time()-start
 
 def time_cuda_pytorch_interp(N):
+    """Custom CUDA kernel — float64 (default dtype)."""
     device = "cuda"
     start  = torch.cuda.Event(enable_timing=True)
     end    = torch.cuda.Event(enable_timing=True)
@@ -60,6 +61,25 @@ def time_cuda_pytorch_interp(N):
     F      = torch.sin(X)*torch.sin(Y)
     torch.cuda.synchronize()
     interp      = RegularGridInterpolator((x,y),F, fill_value=0.0, method=0)
+    start.record()
+    G  = interp(xpt, ypt)
+    end.record()
+    torch.cuda.synchronize()
+    return 1e-3*(start.elapsed_time(end)) # conversion to sec
+
+def time_cuda_pytorch_interp_f32(N):
+    """Custom CUDA kernel — float32 (fair comparison with grid_sample)."""
+    device = "cuda"
+    start  = torch.cuda.Event(enable_timing=True)
+    end    = torch.cuda.Event(enable_timing=True)
+    x      = torch.linspace(0,1,N1, dtype=torch.float32, device=device)
+    y      = torch.linspace(0,1,N2, dtype=torch.float32, device=device)
+    xpt    = torch.rand(N, dtype=torch.float32, device=device)
+    ypt    = torch.rand(N, dtype=torch.float32, device=device)
+    X, Y   = torch.meshgrid(x, y, indexing="ij")
+    F      = torch.sin(X)*torch.sin(Y)
+    torch.cuda.synchronize()
+    interp = RegularGridInterpolator((x,y),F, fill_value=0.0, method=0)
     start.record()
     G  = interp(xpt, ypt)
     end.record()
@@ -150,9 +170,10 @@ def time_cuda_torch_interpolations(N):
     return 1e-3*(start.elapsed_time(end)) # conversion to sec
 
 
-Ns   = 2**torch.arange(4,24)
+Ns   = 2**torch.arange(4,26)
 time_pytorch_cpu = []
 time_pytorch_cuda = []
+time_pytorch_cuda_f32 = []
 time_gs_cuda_bilinear = []
 time_gs_cpu_bilinear = []
 time_scipy = []
@@ -163,6 +184,7 @@ for N in Ns:
     print(f"  N = {N:>10d} ...", end=" ", flush=True)
     time_pytorch_cpu.append(time_cpu_pytorch_interp(N))
     time_pytorch_cuda.append(time_cuda_pytorch_interp(N))
+    time_pytorch_cuda_f32.append(time_cuda_pytorch_interp_f32(N))
     time_gs_cuda_bilinear.append(time_cuda_gs_bilinear(N))
     time_gs_cpu_bilinear.append(time_cpu_gs_bilinear(N))
     time_scipy.append(time_scipy_interp(N))
@@ -181,7 +203,8 @@ plot_type = plt.loglog
 ms=10
 lw=1.5
 # Color scheme: same hue for GPU/CPU pairs, solid for GPU, dashed for CPU
-plot_type(Ns, time_pytorch_cuda, color='tab:blue', marker='.', ls='-',  label="pytorch_interp GPU (CUDA)",      ms=ms, lw=lw)
+plot_type(Ns, time_pytorch_cuda, color='tab:blue', marker='.', ls='-',  label="pytorch_interp GPU (CUDA f64)",    ms=ms, lw=lw)
+plot_type(Ns, time_pytorch_cuda_f32, color='tab:cyan', marker='s', ls='-',  label="pytorch_interp GPU (CUDA f32)", ms=ms-2, lw=lw)
 plot_type(Ns, time_pytorch_cpu,  color='tab:blue', marker='.', ls='--', label="pytorch_interp CPU (C++/OpenMP)", ms=ms, lw=lw)
 plot_type(Ns, time_gs_cuda_bilinear,     color='tab:green', marker='^', ls='-',  label="grid_sample GPU bilinear",     ms=ms-2, lw=lw)
 plot_type(Ns, time_gs_cpu_bilinear,      color='tab:green', marker='^', ls='--', label="grid_sample CPU bilinear",     ms=ms-2, lw=lw)

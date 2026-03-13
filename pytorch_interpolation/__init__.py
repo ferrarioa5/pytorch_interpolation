@@ -1,7 +1,7 @@
 import torch
 from . import _C
-from .ops import bilinear_interp
-from .interp import RegularGridInterpolator, RegularGridInterpolatorPyTorch
+from .ops import bilinear_interp, trilinear_interp_3d
+from .interp import RegularGridInterpolator, RegularGridInterpolatorPyTorch, RegularGridInterpolator3D
 from .grid_sample_interp import RegularGridInterpolatorGridSample
 from .grid_sample_interp import RegularGridInterpolatorGridSample3D
 

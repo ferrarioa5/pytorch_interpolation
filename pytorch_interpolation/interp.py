@@ -1,5 +1,6 @@
 
 from pytorch_interpolation import bilinear_interp
+from pytorch_interpolation.ops import trilinear_interp_3d
 import torch
 
 class RegularGridInterpolator:
@@ -34,7 +35,7 @@ class RegularGridInterpolator:
 
 
     def __call__(self, xpt, ypt):
-        G = torch.zeros_like(xpt)
+        G = torch.empty_like(xpt)
         bilinear_interp(
             self.F, G,
             self.x, self.y,
@@ -132,6 +133,69 @@ class RegularGridInterpolatorPyTorch:
                 self.F[ind_x.clamp(0, self.M1-1), ind_y.clamp(0, self.M2-1)]
                 )
 
+        return G
+
+
+# ======================================================================
+#  3-D  trilinear  — custom C++/CUDA kernel
+# ======================================================================
+
+class RegularGridInterpolator3D:
+    """GPU-accelerated 3-D trilinear interpolation via custom CUDA kernel.
+
+    Same API as RegularGridInterpolatorGridSample3D but calls the fused
+    C++/CUDA ``trilinear_interp_3d`` kernel directly — no coordinate
+    normalisation, no 5-D reshape, no grid_sample overhead.
+
+    Args:
+        points: tuple of (x, y, z) — three 1-D tensors for the uniform
+                grid axes (lengths M1, M2, M3).
+        F:      3-D tensor of shape ``(M1, M2, M3)`` with grid values.
+                Stored row-major ``F[ix, iy, iz]`` in the kernel.
+        fill_value:
+            ``float`` or ``int`` → constant padding  (fill_method=1)
+            ``None``             → linear extrapolation (fill_method=2)
+            ``"nearest"``        → border / nearest clamp (fill_method=3)
+    """
+
+    def __init__(self, points, F, fill_value=0.0):
+        assert isinstance(points, tuple) and len(points) == 3
+        x, y, z = points
+        self.x  = x.contiguous()
+        self.y  = y.contiguous()
+        self.z  = z.contiguous()
+        self.dx = float(x[1] - x[0]) if len(x) > 1 else 1.0
+        self.dy = float(y[1] - y[0]) if len(y) > 1 else 1.0
+        self.dz = float(z[1] - z[0]) if len(z) > 1 else 1.0
+        self.M1 = len(x)
+        self.M2 = len(y)
+        self.M3 = len(z)
+        self.F  = F.contiguous()
+
+        # Resolve fill_method / fill_value the same way as 2-D
+        if isinstance(fill_value, (float, int)):
+            self.fill_method = 1
+            self.fill_value  = float(fill_value)
+        elif fill_value is None:
+            self.fill_method = 2
+            self.fill_value  = 0.0
+        elif fill_value == "nearest":
+            self.fill_method = 3
+            self.fill_value  = 0.0
+        else:
+            raise ValueError("fill_value must be a float, None, or 'nearest'")
+
+    def __call__(self, xpt, ypt, zpt):
+        G = torch.empty_like(xpt)
+        trilinear_interp_3d(
+            self.F, G,
+            self.x, self.y, self.z,
+            xpt, ypt, zpt,
+            self.M1, self.M2, self.M3,
+            self.dx, self.dy, self.dz,
+            self.fill_method,
+            self.fill_value,
+        )
         return G
 
 

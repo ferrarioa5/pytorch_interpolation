@@ -1,26 +1,17 @@
+
 """
-3-D trilinear interpolation example using RegularGridInterpolatorGridSample3D.
+3-D trilinear interpolation example using RegularGridInterpolator3D (custom CUDA kernel).
 
 Demonstrates:
-  1. Building a 3-D grid and evaluating a known analytic function.
-  2. Interpolating at random query points with the grid_sample-backed
-     trilinear interpolator (no C++/CUDA build required).
-  3. Comparing accuracy against the analytic solution.
-  4. Benchmarking GPU vs CPU performance across varying query counts.
+    1. Building a 3-D grid and evaluating a known analytic function.
+    2. Interpolating at random query points with the custom CUDA trilinear interpolator.
+    3. Comparing accuracy against the analytic solution.
+    4. Benchmarking GPU vs CPU performance across varying query counts.
 """
 
+
 import os
-import sys
-
-# Fix sys.path so the installed C++/CUDA extension is found
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_repo_dir = os.path.dirname(_script_dir)
-_saved_path = sys.path.copy()
-sys.path = [p for p in sys.path if os.path.abspath(p) not in (_script_dir, _repo_dir)]
-
-from pytorch_interpolation import RegularGridInterpolatorGridSample3D as GSInterp3D
-
-sys.path = _saved_path
+from pytorch_interpolation import RegularGridInterpolator3D as GSInterp3D
 
 import torch
 import numpy as np
@@ -79,7 +70,7 @@ print(f"L2 error / N       : {err.norm().item() / N_query:.3e}")
 # ======================================================================
 #  2.  Performance benchmark: GPU vs CPU
 # ======================================================================
-Ns = 2 ** torch.arange(4, 22)
+Ns = 2 ** torch.arange(4, 26)
 times_gpu = []
 times_cpu = []
 
@@ -139,8 +130,8 @@ fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 # ── Left: performance ────────────────────────────────────────────────
 ax = axes[0]
 if times_gpu:
-    ax.loglog(Ns.numpy(), times_gpu, 'b.-', label="GPU (grid_sample 3D)", ms=8, lw=1.5)
-ax.loglog(Ns.numpy(), times_cpu, 'b.--', label="CPU (grid_sample 3D)", ms=8, lw=1.5)
+    ax.loglog(Ns.numpy(), times_gpu, 'b.-', label="GPU (CUDA 3D kernel)", ms=8, lw=1.5)
+ax.loglog(Ns.numpy(), times_cpu, 'b.--', label="CPU (CUDA 3D kernel)", ms=8, lw=1.5)
 ax.set_xlabel("Number of query points")
 ax.set_ylabel("Time (s)")
 ax.set_title(f"3-D trilinear performance ({Nx}×{Ny}×{Nz} grid)")
