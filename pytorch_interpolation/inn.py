@@ -101,16 +101,16 @@ class INNInterpolator(nn.Module):
 
     def set_ranges(self, x_ranges: list):
         """Set per-dimension ``(min, max)`` ranges after construction."""
-        self.grid_min = torch.tensor(
+        self.grid_min.copy_(torch.tensor(
             [r[0] for r in x_ranges],
             dtype=torch.float32,
             device=self.params.device,
-        )
-        self.grid_max = torch.tensor(
+        ))
+        self.grid_max.copy_(torch.tensor(
             [r[1] for r in x_ranges],
             dtype=torch.float32,
             device=self.params.device,
-        )
+        ))
 
     @property
     def num_parameters(self) -> int:
@@ -138,8 +138,9 @@ class INNInterpolator(nn.Module):
         # x: (batch, D), grid_min/max: (D,)
         x_norm = (x - self.grid_min) / (self.grid_max - self.grid_min) * self.n_segments
 
-        # Clamp to valid range
-        x_norm = x_norm.clamp(0.0, self.n_segments - 1e-6)
+        # Clamp to valid range (small epsilon avoids out-of-bounds index)
+        _CLAMP_EPS = 1e-6
+        x_norm = x_norm.clamp(0.0, self.n_segments - _CLAMP_EPS)
 
         # Integer cell index and fractional part
         idx = x_norm.long()                       # (batch, D)

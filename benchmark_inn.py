@@ -75,7 +75,10 @@ if not HAS_GS:
         pass
 
 if not HAS_INN:
-    print("[ERROR] INN module not importable. Exiting.")
+    print(
+        "[ERROR] INNInterpolator not importable. "
+        "Ensure pytorch_interpolation is installed or run from the package directory."
+    )
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
@@ -223,7 +226,8 @@ def benchmark_speed():
             x, y, F = make_grid(fn, grid_n, grid_n, xr, yr)
             gs = GSInterp((x, y), F, fill_value="nearest", method=0)
             dt = time_fn(gs, xpt, ypt) * 1000
-            print(f"  {'GridSample bilinear ' + str(grid_n) + '×' + str(grid_n):<35s}  {dt:>10.3f}")
+            label = f"GridSample bilinear {grid_n}×{grid_n}"
+            print(f"  {label:<35s}  {dt:>10.3f}")
 
     for n_modes, n_seg in [(10, 10), (20, 20), (40, 40)]:
         # Quick train

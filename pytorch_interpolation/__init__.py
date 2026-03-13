@@ -4,8 +4,10 @@ try:
     from . import _C
     from .ops import bilinear_interp, trilinear_interp_3d
     from .interp import RegularGridInterpolator, RegularGridInterpolatorPyTorch, RegularGridInterpolator3D
+    HAS_C_EXTENSION = True
 except ImportError:
     _C = None
+    HAS_C_EXTENSION = False
 
 from .grid_sample_interp import RegularGridInterpolatorGridSample
 from .grid_sample_interp import RegularGridInterpolatorGridSample3D
@@ -54,7 +56,7 @@ class RegularGridInterpolatorAutomatic:
         self._ndim = len(points)
 
         if self._ndim == 2:
-            if _C is not None:
+            if HAS_C_EXTENSION:
                 self._impl = RegularGridInterpolator(
                     points, F, fill_value=fill_value, method=method,
                 )
