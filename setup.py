@@ -16,10 +16,7 @@ library_name = "pytorch_interpolation"
 description = "2d linear-quadratic interpolation on a regular grid in PyTorch"
 url="https://github.com/ferrarioa5/pytorch_interpolation"
 
-if torch.__version__ >= "2.6.0":
-    py_limited_api = True
-else:
-    py_limited_api = False
+py_limited_api = False
 
 
 def get_extensions(library_name, py_limited_api):
@@ -36,7 +33,6 @@ def get_extensions(library_name, py_limited_api):
         "cxx": [
             "-O3" if not debug_mode else "-O0",
             "-fdiagnostics-color=always",
-            "-DPy_LIMITED_API=0x03090000",  # min CPython version 3.9
             "-fopenmp",
         ],
         "nvcc": [
@@ -83,7 +79,7 @@ setup(
     long_description_content_type = "text/markdown",
     url                           = url,
     cmdclass                      = {"build_ext": BuildExtension},
-    options                       = {"bdist_wheel": {"py_limited_api": "cp39"}} if py_limited_api else {},
+    options                       = {},
 )
 
 
